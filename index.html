@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vinculos App</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+  <style>
+    body {
+      text-align: center;
+      color: #000000;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: linear-gradient(to right, #000000, #333333);
+      transition: background 1s ease;
+      position: relative;
+      padding-bottom: 40px;
+    }
+
+
+    h1 {
+      font-family: 'Brush Script MT', cursive;
+      font-size: 550%;
+      transition: left 0.3s ease;
+      z-index: 2;
+      position: relative;
+    }
+
+    h1.left {
+      left: 5px;
+    }
+
+    .button {
+      margin: 5px;
+      padding: 10px;
+      cursor: pointer;
+      color: #000000;
+      background-color: #ffd700;
+      border: none;
+      border-radius: 5px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .group-container {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .group-buttons {
+      margin-bottom: 10px;
+    }
+
+    .group-buttons .button {
+      color: #ffd700;
+      background-color: #000000;
+    }
+
+    .group-buttons .button.active {
+      color: #000000;
+      background-color: #ffd700;
+    }
+
+    .group-section {
+      display: none;
+      margin-top: 20px;
+      padding-top: 10px;
+      z-index: 1;
+    }
+
+    .group-section.active {
+      display: block;
+    }
+
+    #warning {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .boton-enlace {
+      display: inline-block;
+      padding: 10px 20px;
+      margin: 10px;
+      text-decoration: none;
+      font-size: 16px;
+      color: #000000;
+      background-color: hsl(161, 100%, 50%);
+      border: 5px solid rgb(159, 153, 63);
+      border-radius: 5px;
+      cursor: pointer;
+      position: relative;
+      z-index: 2;
+    }
+
+    .grupo-seccion {
+      margin-top: 20px;
+      padding-top: 10px;
+    }
+
+    .grupo-titulo {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    form {
+      margin-bottom: 20px;
+      z-index: 2;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input {
+      padding: 5px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #cccccc;
+    }
+
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+      z-index: 2;
+    }
+
+    .button-container button {
+      margin: 10px;
+    }
+
+    .saved-buttons button {
+      margin-right: 10px;
+    }
+
+    #guardarExcel {
+      margin-top: 20px;
+    }
+
+    .alert {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px;
+      background-color: #ff0000;
+      color: #ffffff;
+      font-weight: bold;
+      text-align: center;
+      display: none;
+      z-index: 2;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1 id="titulo">Vinculos App</h1>
+
+  <form id="miFormulario">
+
+    <label for="nombre">Nombre:</label><br>
+    <input type="text" id="nombre" name="nombre" required><br>
+
+    <label for="url">URL:</label><br>
+    <input type="text" id="url" name="url" required><br>
+
+    <label for="grupo">Grupo:</label><br>
+    <input type="text" id="grupo" name="grupo" required><br>
+
+    <button class="button" type="button" onclick="agregarElemento()">Agregar</button>
+    </form>
+
+  <button class="button" type="button" onclick="cargarDesdeExcel()">Cargar Excel</button>
+
+  <div class="button-container">
+    <button class="button" id="guardarExcel" onclick="guardarEnCSV()">Exportar CSV</button>
+  </div>
+
+  <div id="savedButtons" class="saved-buttons"></div>
+
+  <div class="alert" id="alerta">
+    ¡Alerta! No se encontró información anterior.
+  </div>
+
+  <div class="group-container">
+    <div class="group-buttons" id="groupButtons"></div>
+    <div class="grupo-seccion" id="groupContainer"></div>
+  </div>
+
+  <script>
+    function toggleGrupo(grupo) {
+      var groupSection = document.getElementById('groupSection_' + grupo);
+      groupSection.classList.toggle('active');
+
+      var grupos = document.getElementsByClassName('group-section');
+      Array.from(grupos).forEach(function (otherGroup) {
+        if (otherGroup.id !== 'groupSection_' + grupo) {
+          otherGroup.classList.remove('active');
+        }
+      });
+
+      actualizarBotonesGrupoActivo(grupo);
+    }
+
+    function actualizarBotonesGrupoActivo(grupo) {
+      var buttons = document.getElementById('groupButtons').getElementsByClassName('button');
+      Array.from(buttons).forEach(function(button) {
+        if (button.textContent === grupo) {
+          button.classList.toggle('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+    }
+
+    function agregarElemento() {
+      var nombre = document.getElementById('nombre').value;
+      var url = document.getElementById('url').value;
+      var grupo = document.getElementById('grupo').value;
+
+      if (!nombre || !url || !grupo) {
+        alert("Por favor, completa todas las casillas antes de agregar.");
+        return;
+      }
+
+      grupo = grupo.split(' ').map(word => {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }).join(' ');
+
+      var groupHeader = document.createElement('h3');
+      groupHeader.textContent = grupo;
+
+      var button = document.createElement('button');
+      button.textContent = nombre;
+      button.setAttribute('data-url', url);
+      button.setAttribute('data-grupo', grupo);
+      button.onclick = function () {
+        window.open(url, '_blank');
+      };
+
+      var savedButtons = document.getElementById('savedButtons');
+      var groupSection = document.getElementById('groupSection_' + grupo);
+      if (!groupSection) {
+        groupSection = document.createElement('div');
+        groupSection.id = 'groupSection_' + grupo;
+        groupSection.className = 'group-section';
+        savedButtons.appendChild(groupSection);
+      }
+
+      groupSection.appendChild(groupHeader);
+      groupSection.appendChild(button);
+
+      document.getElementById('miFormulario').reset();
+    }
+
+    function cargarDesdeExcel() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv';
+      input.addEventListener('change', handleFileSelect);
+      input.click();
+    }
+
+    function handleFileSelect(event) {
+      var file = event.target.files[0];
+
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var content = e.target.result;
+          localStorage.setItem('lastExcelData', content);
+          procesarDatosDesdeCSV(content);
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    function procesarDatosDesdeCSV(csvContent) {
+      var filas = csvContent.split('\n');
+
+      var datosAgrupados = {};
+
+      filas.forEach(function(fila) {
+        var datos = fila.split(',');
+        if (datos.length === 3 && datos[0] !== 'Nombre' && datos[1] !== 'URL' && datos[2] !== 'Grupo') {
+          var nombre = datos[0].trim();
+          var url = datos[1].trim();
+          var grupo = datos[2].trim();
+
+          grupo = grupo.split(' ').map(word => {
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+          }).join(' ');
+
+          if (!datosAgrupados[grupo]) {
+            datosAgrupados[grupo] = [];
+          }
+          datosAgrupados[grupo].push({ nombre: nombre, url: url });
+        }
+      });
+
+      Object.keys(datosAgrupados).forEach(function(grupo) {
+        agregarElementosDesdeExcel(grupo, datosAgrupados[grupo]);
+        actualizarBotonesGrupo(grupo);
+        actualizarSelector(grupo);
+      });
+    }
+
+    function agregarElementosDesdeExcel(grupo, datos) {
+      var groupHeader = document.createElement('h3');
+      groupHeader.textContent = grupo;
+
+      var savedButtons = document.getElementById('savedButtons');
+      var groupSection = document.getElementById('groupSection_' + grupo);
+      if (!groupSection) {
+        groupSection = document.createElement('div');
+        groupSection.id = 'groupSection_' + grupo;
+        groupSection.className = 'group-section';
+        savedButtons.appendChild(groupSection);
+      }
+
+      groupSection.appendChild(groupHeader);
+
+      datos.forEach(function(dato) {
+        var button = document.createElement('button');
+        button.textContent = dato.nombre;
+        button.setAttribute('data-url', dato.url);
+        button.setAttribute('data-grupo', grupo);
+        button.onclick = function () {
+          window.open(dato.url, '_blank');
+        };
+        groupSection.appendChild(button);
+      });
+    }
+
+    function mostrarAlerta() {
+      var alerta = document.getElementById('alerta');
+      alerta.style.display = 'block';
+      setTimeout(function() {
+        alerta.style.display = 'none';
+      }, 5000);
+    }
+
+    function guardarEnCSV() {
+      var savedButtons = document.getElementById('savedButtons');
+      var grupos = savedButtons.getElementsByClassName('group-section');
+
+      if (grupos.length === 0) {
+        alert("No hay datos para guardar en CSV.");
+        return;
+      }
+
+      var csvContent = 'Nombre,URL,Grupo\n';
+
+      Array.from(grupos).forEach(function(grupo) {
+        var groupName = grupo.getElementsByTagName('h3')[0].textContent;
+
+        var buttons = grupo.getElementsByTagName('button');
+
+        Array.from(buttons).forEach(function(button) {
+          var nombre = button.textContent;
+          var url = button.getAttribute('data-url');
+          var grupo = button.getAttribute('data-grupo');
+          csvContent += nombre + ',' + url + ',' + grupo + '\n';
+        });
+      });
+
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var link = document.createElement('a');
+
+      if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, 'Vinculos.csv');
+      } else {
+        link.href = URL.createObjectURL(blob);
+        link.download = 'Vinculos.csv';
+        link.style.visibility = 'hidden';
+        link.style.position = 'absolute';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    function getRandomColor() {
+      return '#' + Math.floor(Math.random()*16777215).toString(16);
+    }
+
+    function actualizarSelector(grupo) {
+      var grupoSelector = document.getElementById('grupoSelector');
+
+      if (grupoSelector) {
+        var option = document.createElement('option');
+        option.value = grupo;
+        option.text = grupo;
+        grupoSelector.add(option);
+      }
+    }
+
+    function actualizarBotonesGrupo(grupo) {
+      var groupButtons = document.getElementById('groupButtons');
+
+      var button = document.createElement('button');
+      button.textContent = grupo;
+      button.className = 'button';
+      button.onclick = function() {
+        toggleGrupo(grupo);
+      };
+
+      groupButtons.appendChild(button);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var lastExcelData = localStorage.getItem('lastExcelData');
+      if (lastExcelData) {
+        procesarDatosDesdeCSV(lastExcelData);
+      } else {
+        mostrarAlerta();
+      }
+
+      setTimeout(function() {
+        var randomColor1 = getRandomColor();
+        var randomColor2 = getRandomColor();
+        document.body.style.background = 'linear-gradient(to right, ' + randomColor1 + ', ' + randomColor2 + ')';
+      }, 1000);
+    });
+
+    window.addEventListener('scroll', function() {
+      var titulo = document.getElementById('titulo');
+      var rect = titulo.getBoundingClientRect();
+
+      if (rect.top < 5) {
+        titulo.classList.add('left');
+      } else {
+        titulo.classList.remove('left');
+      }
+    });
+  </script>
+
+</body>
+</html>
